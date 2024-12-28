@@ -26,6 +26,26 @@ def download_filing(filing_url, save_path):
         for chunk in response.iter_content(chunk_size=1024):
             f.write(chunk)
 
+# Function to filter filings by form type and year range
+def filter_filings(filings, form_type, years_to_fetch):
+    current_year = datetime.now().year
+    filtered_filings = []
+
+    for index, form in enumerate(filings.get("form", [])):
+        if form == form_type:
+            filing_date = filings["filingDate"][index]  # Filing date
+            filing_year = datetime.strptime(filing_date, "%Y-%m-%d").year
+
+            # Check if the filing falls within the desired year range
+            if current_year - filing_year < years_to_fetch:
+                accession_number = filings["accessionNumber"][index].replace("-", "")
+                primary_doc = filings["primaryDocument"][index]
+                reporting_year = filings["reportDate"][index].split("-")[0]
+                filing_url = f"https://www.sec.gov/Archives/edgar/data/{cik}/{accession_number}/{primary_doc}"
+                
+                filtered_filings.append((filing_url, reporting_year))
+    return filtered_filings
+
 # Function to process HTML content with GPT
 def process_with_gpt(html_content):
     headers = {"User-Agent": USER_AGENT, "Content-Type": "application/json"}
@@ -43,31 +63,45 @@ if __name__ == "__main__":
     cik = cik_lookup.fetch_cik(identifier)
     print("CIK:", cik)
 
+    years_to_fetch = int(input("Enter the number of years of filings to pull: ").strip())
+    
     print("Fetching filings...")
+    
     # Get json associated with cik
     data = fetch_company_filings(cik)
     # print(data)
     # Get exact accessionNumbers of all filings
-    filings = data.get("filings", {}).get("recent", {})
+    filings_recent = data.get("filings", {}).get("recent", [])
+    print(filings_recent)
+    filings = filings_recent
+    
+    # filings_files = data.get("filings", {}).get("files", [])
+    # # Convert list of filings into a dictionary-like structure
+    # if filings_files:
+    #     filings_dict = {
+    #         key: [item[key] for item in filings_files if key in item]
+    #         for key in filings_files[0]
+    #     }
+    #     print(filings_dict)
+        # filings = filings_dict
+    # else:
+    #     filings_dict = {}
+        # filings = filings_dict
+    
+    # raise Exception("break")
+
     # print(filings)
     # print("Available keys in filings['recent']:", sorted(filings.keys()))
 
-    filing_url_list = []
-    for index, form in enumerate(filings.get("form", [])):
-        if form == "10-K":
-            accession_number = filings["accessionNumber"][index].replace("-", "")
-            primary_doc = filings["primaryDocument"][index]
-            period_of_report = filings["reportDate"][index]  # Extract period of report
-            reporting_year = datetime.strptime(period_of_report, "%Y-%m-%d").year  # Parse reporting year
-            filing_date = filings["filingDate"][index]  # Extract filing date
-            filing_year = datetime.strptime(filing_date, "%Y-%m-%d").year  # Parse year
+    # Fetch and download filings for each form type
+    for form_type in ["10-K", "DEF 14A"]:
+        print(f"Processing {form_type} filings...")
+        form_filings = filter_filings(filings, form_type, years_to_fetch)
 
-            filing_url = f"https://www.sec.gov/Archives/edgar/data/{cik}/{accession_number}/{primary_doc}"
-            filing_url_list.append(filing_url)
+        for filing_url, reporting_year in form_filings:
+            print(f"Downloading {form_type} filing: {filing_url}")
 
-            print(f"Downloading 10-K filing: {filing_url}")
-
-            save_path = os.path.join(SAVE_DIR, identifier, f"{identifier}_{reporting_year}_10-K.html")
+            save_path = os.path.join(SAVE_DIR, identifier, f"{identifier}_{reporting_year}_{form_type}.html")
             os.makedirs(os.path.dirname(save_path), exist_ok=True)  # Ensure directory exists
             print(f"Save path: {save_path}")
             download_filing(filing_url, save_path)

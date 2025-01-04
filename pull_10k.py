@@ -41,9 +41,10 @@ def filter_filings(filings, form_type, years_to_fetch):
                 accession_number = filings["accessionNumber"][index].replace("-", "")
                 primary_doc = filings["primaryDocument"][index]
                 reporting_year = filings["reportDate"][index].split("-")[0]
+                reporting_date = filings["reportDate"][index]
                 filing_url = f"https://www.sec.gov/Archives/edgar/data/{cik}/{accession_number}/{primary_doc}"
                 
-                filtered_filings.append((filing_url, reporting_year))
+                filtered_filings.append((filing_url, reporting_year, reporting_date))
     return filtered_filings
 
 # Function to process HTML content with GPT
@@ -91,17 +92,20 @@ if __name__ == "__main__":
     # raise Exception("break")
 
     # print(filings)
+
+    # Print available keys
     # print("Available keys in filings['recent']:", sorted(filings.keys()))
+    # raise Exception("break")
 
     # Fetch and download filings for each form type
-    for form_type in ["10-K", "DEF 14A"]:
+    for form_type in ["10-K", "DEF 14A", "10-Q"]:
         print(f"Processing {form_type} filings...")
         form_filings = filter_filings(filings, form_type, years_to_fetch)
 
-        for filing_url, reporting_year in form_filings:
+        for filing_url, reporting_year, reporting_date in form_filings:
             print(f"Downloading {form_type} filing: {filing_url}")
 
-            save_path = os.path.join(SAVE_DIR, identifier, f"{identifier}_{reporting_year}_{form_type}.html")
+            save_path = os.path.join(SAVE_DIR, identifier, f"{identifier}_{reporting_year}_{form_type}_{reporting_date}.html")
             os.makedirs(os.path.dirname(save_path), exist_ok=True)  # Ensure directory exists
             print(f"Save path: {save_path}")
             download_filing(filing_url, save_path)

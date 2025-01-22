@@ -59,10 +59,10 @@ def process_with_gpt(html_content):
 if __name__ == "__main__":
     os.makedirs(SAVE_DIR, exist_ok=True)
 
-    identifier = input("Enter Ticker: ").strip().upper()
-    print("Fetching CIK...")
-    cik = cik_lookup.fetch_cik(identifier)
+    cik, ticker, coname = cik_lookup.fetch_cik()
     print("CIK:", cik)
+    print("Ticker:", ticker)
+    print("Company Name:", coname)
 
     years_to_fetch = int(input("Enter the number of years of filings to pull: ").strip())
     
@@ -98,28 +98,16 @@ if __name__ == "__main__":
     # raise Exception("break")
 
     # Fetch and download filings for each form type
-    for form_type in ["10-K", "DEF 14A", "10-Q"]:
+    for form_type in ["10-K", "DEF 14A", "10-Q", "20-F"]:
         print(f"Processing {form_type} filings...")
         form_filings = filter_filings(filings, form_type, years_to_fetch)
 
         for filing_url, reporting_year, reporting_date in form_filings:
             print(f"Downloading {form_type} filing: {filing_url}")
 
-            save_path = os.path.join(SAVE_DIR, identifier, f"{identifier}_{reporting_year}_{form_type}_{reporting_date}.html")
+            save_path = os.path.join(SAVE_DIR, ticker, f"{ticker}_{reporting_year}_{form_type}_{reporting_date}.html")
             os.makedirs(os.path.dirname(save_path), exist_ok=True)  # Ensure directory exists
             print(f"Save path: {save_path}")
             download_filing(filing_url, save_path)
 
     print(f"All 10-K filings downloaded to '{SAVE_DIR}' folder.")
-
-    # Run entire html from filing_url_list[0] through this custom GPT located here (https://chatgpt.com/g/g-6761212046648191a582b7f3616c29b6-business-interpreter) 
-    # and return the GPT's response here. 
-
-    # if filing_url_list:
-    #     print("Processing with GPT:", filing_url_list[0])
-    #     first_filing_url = filing_url_list[0]
-    #     response = requests.get(first_filing_url, headers={"User-Agent": USER_AGENT})
-    #     response.raise_for_status()
-    #     html_content = response.text
-    #     gpt_response = process_with_gpt(html_content)
-    #     print("GPT Response:", gpt_response)
